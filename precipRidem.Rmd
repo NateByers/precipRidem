@@ -1,0 +1,50 @@
+---
+title: "R Tutorial: Precipitation Graphs, Pt 1"
+author: "Nathan Byers"
+date: "Tuesday, July 09, 2014"
+output:
+  html_document:
+    theme: readable
+---
+
+--------------------------------------------------------------------------------
+
+In this tutorial we will be using data from the `IDEMdata` package to manipulate
+data sets, create custom graphs, and use functions and loops to automate the 
+creation of these graphs. 
+
+# The Data
+To access the data, we need to download the package from a GitHub repository. The 
+repository address is <a href="https://github.com/InDEM/IDEMdata" target="_blank">https://github.com/InDEM/IDEMdata</a>. To install it from GitHub, we use the `devtools` package.
+
+```{r, message=FALSE}
+library(devtools)
+install_github("InDEM/IDEMdata")
+```
+
+Now we load the `IDEMdata` package and take a look at the package description
+help file.
+
+```{r, message=FALSE}
+library(IDEMdata)
+?IDEMdata
+```
+
+In the bottom right panel of <a href="rstudio.com" target="_blank">RStudio</a> 
+you will see the file that describes what's in this package. At the very bottom 
+of that file, click on "Index" and you will see all of the data sets that are in
+the package. 
+
+The "deep_river" data frames are data that were collected by sampling the 
+Deep River - Portage Burns Watershed in Lake and Porter Counties. These data are
+just a subset of sampling that took place in the watershed between April 2013
+and March 2014. The purpose of the sampling was to get a baseline assessment of
+the watershed for TMDL development and watershed planning. More information about
+the study can be found <a href="http://www.in.gov/idem/nps/3893.htm" target="_blank">here</a>.
+
+In part 1 of this tutorial we will be exploring these data sets
+to become more familiar with them. In part 2 we will design graphs that visualize
+the relationship between daily precipitation and the sampled data from the 
+watershed. In part 2 we will write functions and use loops to automate the data 
+manipulation necessary to make the graphs, and to automate the creation of the 
+graphs themselves.
