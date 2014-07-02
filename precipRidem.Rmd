@@ -13,7 +13,7 @@ In this tutorial we will be using data from the `IDEMdata` package to manipulate
 data sets, create custom graphs, and use functions and loops to automate the 
 creation of these graphs. 
 
-# The Data
+# All the datas
 To access the data, we need to download the package from a GitHub repository. The 
 repository address is <a href="https://github.com/InDEM/IDEMdata" target="_blank">https://github.com/InDEM/IDEMdata</a>. To install it from GitHub, we use the `devtools` package.
 
@@ -48,3 +48,90 @@ the relationship between daily precipitation and the sampled data from the
 watershed. In part 2 we will write functions and use loops to automate the data 
 manipulation necessary to make the graphs, and to automate the creation of the 
 graphs themselves.
+
+# Chemistry data
+
+Let's take a look at the `deep_river_chemistry` data frame. 
+
+```{r, echo = FALSE}
+data(deep_river_chemistry)
+chem.df <- deep_river_chemistry
+```
+
+```{r, eval = FALSE}
+data(deep_river_chemistry)
+chem.df <- deep_river_chemistry
+View(chem.df)
+```
+
+This data set is in a "long" format, meaning that there is one "value" column 
+and one "variable" column (in this data set, the value is in the `LAB_RESULT`
+column and the variables are in the `SUBSTANCE_NAME` column). We may want this
+data in a wide format, meaning there are columns for every variable. To do this,
+we use the `reshape2` package, as explained in a <a href="http://rpubs.com/NateByers/manipRidem"
+target="_blank">previous tutorial</a>.
+
+In order to do this it's helpful to identify the minimum columns we need to keep
+in order to preserve all of the values. In other words, what columns are necessary
+to identify a unique record? In the function below, the columns to the left of 
+`~` in the formula are the columns identified as necessary to preserve every
+value (plus a few that are kept for convenince), the column on the right of 
+`~` is the variable column, and `LAB_RESULT` is identified as the `value.var`.
+
+```{r, echo = FALSE}
+library(reshape2)
+wide.chem.df <- dcast(chem.df, STATION_NAME + ACTIVITY_END_DATE + WATERBODY_NAME 
+                   + UTM_EAST + UTM_NORTH + COUNTY_NAME  
+                   ~ SUBSTANCE_NAME, value.var = 'LAB_RESULT', 
+                   fun.aggregate = mean, na.rm=TRUE)
+```
+
+```{r, eval = FALSE}
+library(reshape2)
+wide.chem.df <- dcast(chem.df, (STATION_NAME + ACTIVITY_END_DATE + WATERBODY_NAME 
+                   + UTM_EAST + UTM_NORTH + COUNTY_NAME  
+                   ~ SUBSTANCE_NAME), value.var = "LAB_RESULT", 
+                   fun.aggregate = mean, na.rm=TRUE)
+View(wide.chem.df)
+```
+
+The `fun.aggregate = mean` parameter is necessary because there are a few values
+that are duplicated for one location, date, and substance. So the values for each
+substance variable are actually the means of any values for the same place, activity
+end date, and substance.
+
+In order to make this data frame useful, we need to rename the columns. We can
+use the `colname()` function to rename some of the columns. Here we rename the first
+7 columns:
+
+```{r}
+colnames(wide.chem.df)[1:7] <- c("station", "end_date", "waterbody", "utm_e",
+                               "utm_n", "county", "value")
+```
+
+However, it is more efficient to use regular expressions to do this. We won't go
+into how regular expressions work (a thorough introduction to string manipulation
+in R can be found
+<a href="http://gastonsanchez.com/Handling_and_Processing_Strings_in_R.pdf" 
+target="_blank">here</a>), but here is some code that will tidy up our column
+names courtesy of Eric Bailey:
+
+```{r}
+# Convert column names to lower case
+colnames(wide.chem.df) <- tolower(colnames(wide.chem.df))
+
+# Get rid of all the abbreviations (ex. (as caco3))
+colnames(wide.chem.df) <- gsub("\\(.*\\)", "", colnames(wide.chem.df)) 
+
+# Get rid of non-alphanumeric characters
+colnames(wide.chem.df) <- gsub("[\\,\\.%\\+]", "", colnames(wide.chem.df)) 
+
+# Remove leading and trailing whitespace
+colnames(wide.chem.df) <- gsub("^\\s|\\s$", "", colnames(wide.chem.df)) 
+
+# Replace remaining spaces with periods
+colnames(wide.chem.df) <- gsub(" ", "\\_", colnames(wide.chem.df)) 
+```
+
+
+
