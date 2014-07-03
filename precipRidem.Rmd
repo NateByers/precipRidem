@@ -13,7 +13,8 @@ In this tutorial we will be using data from the `IDEMdata` package to manipulate
 data sets, create custom graphs, and use functions and loops to automate the 
 creation of these graphs. 
 
-# All the datas
+# Getting the data
+
 To access the data, we need to download the package from a GitHub repository. The 
 repository address is <a href="https://github.com/InDEM/IDEMdata" target="_blank">https://github.com/InDEM/IDEMdata</a>. To install it from GitHub, we use the `devtools` package.
 
@@ -45,7 +46,7 @@ the study can be found <a href="http://www.in.gov/idem/nps/3893.htm" target="_bl
 In part 1 of this tutorial we will be exploring these data sets
 to become more familiar with them. In part 2 we will design graphs that visualize
 the relationship between daily precipitation and the sampled data from the 
-watershed. In part 2 we will write functions and use loops to automate the data 
+watershed. In part 3 we will write functions and use loops to automate the data 
 manipulation necessary to make the graphs, and to automate the creation of the 
 graphs themselves.
 
@@ -55,7 +56,9 @@ Let's take a look at the `deep_river_chemistry` data frame.
 
 ```{r, echo = FALSE}
 data(deep_river_chemistry)
-chem.df <- deep_river_chemistry
+chem.df <- deep_river_chemistry # rename for convenience
+remove(deep_river_chemistry)    # a little clean-up
+
 ```
 
 ```{r, eval = FALSE}
@@ -64,49 +67,107 @@ chem.df <- deep_river_chemistry
 View(chem.df)
 ```
 
-This data set is in a "long" format, meaning that there is one "value" column 
-and one "variable" column (in this data set, the value is in the `LAB_RESULT`
-column and the variables are in the `SUBSTANCE_NAME` column). We may want this
-data in a wide format, meaning there are columns for every variable. To do this,
-we use the `reshape2` package, as explained in a <a href="http://rpubs.com/NateByers/manipRidem"
+The first thing we need to deal with are duplicate rows in the data frame. We
+can find those duplicates by using the `duplicated()` funtion, which returns a 
+logical vector.
+
+```{r}
+duplicates <- duplicated(chem.df) 
+head(duplicates, 10)
+```
+
+The `duplicates` vector will have a value of `TRUE` for any row that is a duplicate
+of a previous row. We'll use negation of this logical vector to subset out all
+of the rows that are _not_ duplicates.
+
+```{r}
+chem.df <- chem.df[!duplicates, ]
+```
+
+Another thing to notice is that there are negative values in the `LAB_RESULT` 
+column that don't make sense. For example:
+
+```{r}
+chem.df[c(36, 71), c("ACTIVITY_END_DATE", "SUBSTANCE_NAME", "LAB_RESULT", "LAB_RESULT_TEXT")]
+```
+
+The `LAB_RESULT` column has a `numeric` class, and we can see that the `LAB_RESULT_TEXT`
+column has `<` and `>` symbols. These are threshold values, and the negative values
+in the numeric column are there to mark threshold results. For maxium thresholds
+(i.e., text values with `>`) we're going to just replace the `numeric` value in 
+the `LAB_RESULT` column with the max threshold value (we just drop the `>`). 
+For text values that are minimum thresholds (`<`) we'll replace the `numeric` 
+value with _half_ of the minimum threshold
+
+First, the maximum thresholds:
+
+```{r}
+# create a subset of rows with >
+max.thresh.df <- chem.df[grepl(">", chem.df$LAB_RESULT_TEXT, , fixed = T), ]
+
+# create a character vector of LAB_RESULT_TEXT values with > removed
+max.thresh.numeric <- gsub(">", "", max.thresh.df$LAB_RESULT_TEXT, fixed = T)
+
+# convert the character vector to numeric
+max.thresh.numeric <- as.numeric(max.thresh.numeric)
+
+# replace those negative numeric values with the numeric values vector
+chem.df[grepl(">", chem.df$LAB_RESULT_TEXT, fixed = T), "LAB_RESULT"] <- max.thresh.numeric
+```
+
+Now we replace the minimum threshold values with half the threshold:
+
+```{r}
+# create a subset of rows with <
+min.thresh.df <- chem.df[grepl("<", chem.df$LAB_RESULT_TEXT, , fixed = T), ]
+
+# create a character vector of LAB_RESULT_TEXT values with > removed
+min.thresh.numeric <- gsub("<", "", min.thresh.df$LAB_RESULT_TEXT, fixed = T)
+
+# convert the character vector to numeric
+min.thresh.numeric <- as.numeric(min.thresh.numeric)
+
+# replace those negative numeric values with the numeric values vector
+chem.df[grepl("<", chem.df$LAB_RESULT_TEXT, fixed = T), "LAB_RESULT"] <- min.thresh.numeric/2
+```
+
+Also, this data set is in a "long" format. This 
+means that there is one "value" column and one "variable" column (in this data 
+set, the values are in the `LAB_RESULT` column and the variables are in the 
+`SUBSTANCE_NAME` column). We may want this data in a wide format, meaning there 
+are columns for every variable. To do this, we use the `reshape2` package, as 
+explained in a <a href="http://rpubs.com/NateByers/manipRidem"
 target="_blank">previous tutorial</a>.
 
-In order to do this it's helpful to identify the minimum columns we need to keep
-in order to preserve all of the values. In other words, what columns are necessary
-to identify a unique record? In the function below, the columns to the left of 
-`~` in the formula are the columns identified as necessary to preserve every
-value (plus a few that are kept for convenince), the column on the right of 
-`~` is the variable column, and `LAB_RESULT` is identified as the `value.var`.
+It's helpful to identify the minimum columns we need to keep in order to preserve 
+all of the values. In other words, what columns are necessary to identify a 
+unique record? In the dcast function below, the columns to the left of `~` in the 
+formula are the columns identified as necessary to preserve every value (plus a 
+few that are kept for convenince), the column on the right of `~` is the variable 
+column, and `LAB_RESULT` is identified as the `value.var`. 
 
 ```{r, echo = FALSE}
 library(reshape2)
-wide.chem.df <- dcast(chem.df, STATION_NAME + ACTIVITY_END_DATE + WATERBODY_NAME 
-                   + UTM_EAST + UTM_NORTH + COUNTY_NAME  
-                   ~ SUBSTANCE_NAME, value.var = 'LAB_RESULT', 
-                   fun.aggregate = mean, na.rm=TRUE)
+wide.chem.df <- dcast(chem.df, STATION_NAME + ACTIVITY_NO + ACTIVITY_END_DATE 
+                      + WATERBODY_NAME + UTM_EAST + UTM_NORTH + COUNTY_NAME 
+                      ~ SUBSTANCE_NAME, value.var = 'LAB_RESULT')
 ```
 
 ```{r, eval = FALSE}
 library(reshape2)
-wide.chem.df <- dcast(chem.df, (STATION_NAME + ACTIVITY_END_DATE + WATERBODY_NAME 
-                   + UTM_EAST + UTM_NORTH + COUNTY_NAME  
-                   ~ SUBSTANCE_NAME), value.var = "LAB_RESULT", 
-                   fun.aggregate = mean, na.rm=TRUE)
+wide.chem.df <- dcast(chem.df, STATION_NAME + ACTIVITY_NO + ACTIVITY_END_DATE 
+                      + WATERBODY_NAME + UTM_EAST + UTM_NORTH + COUNTY_NAME 
+                      ~ SUBSTANCE_NAME, value.var = 'LAB_RESULT'))
 View(wide.chem.df)
 ```
 
-The `fun.aggregate = mean` parameter is necessary because there are a few values
-that are duplicated for one location, date, and substance. So the values for each
-substance variable are actually the means of any values for the same place, activity
-end date, and substance.
-
 In order to make this data frame useful, we need to rename the columns. We can
 use the `colname()` function to rename some of the columns. Here we rename the first
-7 columns:
+7 columns, as well as one of the turbidity columns:
 
 ```{r}
-colnames(wide.chem.df)[1:7] <- c("station", "end_date", "waterbody", "utm_e",
-                               "utm_n", "county", "value")
+colnames(wide.chem.df)[c(1:7, 33)] <- c("station", "end_date", "waterbody", "utm_e",
+                               "utm_n", "county", "value", "turbidity_hach")
 ```
 
 However, it is more efficient to use regular expressions to do this. We won't go
@@ -114,7 +175,7 @@ into how regular expressions work (a thorough introduction to string manipulatio
 in R can be found
 <a href="http://gastonsanchez.com/Handling_and_Processing_Strings_in_R.pdf" 
 target="_blank">here</a>), but here is some code that will tidy up our column
-names courtesy of Eric Bailey:
+names, courtesy of Eric Bailey:
 
 ```{r}
 # Convert column names to lower case
@@ -133,5 +194,11 @@ colnames(wide.chem.df) <- gsub("^\\s|\\s$", "", colnames(wide.chem.df))
 colnames(wide.chem.df) <- gsub(" ", "\\_", colnames(wide.chem.df)) 
 ```
 
+-------------------------------------------------------------------------------
 
+# R Markdown
+
+This tutorial was created using RStudio's <a href="http://rmarkdown.rstudio.com/"
+target="_blank">R Markdown</a>. The code can be found on <a href="https://github.com/NateByers/precipRidem"
+target="_blank">GitHub</a>.
 

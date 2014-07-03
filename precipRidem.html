@@ -61,8 +61,8 @@ if (window.hljs && document.readyState && document.readyState === "complete") {
 
 <hr />
 <p>In this tutorial we will be using data from the <code>IDEMdata</code> package to manipulate data sets, create custom graphs, and use functions and loops to automate the creation of these graphs.</p>
-<div id="the-data" class="section level1">
-<h1>The data</h1>
+<div id="getting-the-data" class="section level1">
+<h1>Getting the data</h1>
 <p>To access the data, we need to download the package from a GitHub repository. The repository address is <a href="https://github.com/InDEM/IDEMdata" target="_blank">https://github.com/InDEM/IDEMdata</a>. To install it from GitHub, we use the <code>devtools</code> package.</p>
 <pre class="r"><code>library(devtools)
 install_github(&quot;InDEM/IDEMdata&quot;)</code></pre>
@@ -71,7 +71,7 @@ install_github(&quot;InDEM/IDEMdata&quot;)</code></pre>
 ?IDEMdata</code></pre>
 <p>In the bottom right panel of <a href="rstudio.com" target="_blank">RStudio</a> you will see the file that describes what’s in this package. At the very bottom of that file, click on “Index” and you will see all of the data sets that are in the package.</p>
 <p>The “deep_river” data frames are data that were collected by sampling the Deep River - Portage Burns Watershed in Lake and Porter Counties. These data are just a subset of sampling that took place in the watershed between April 2013 and March 2014. The purpose of the sampling was to get a baseline assessment of the watershed for TMDL development and watershed planning. More information about the study can be found <a href="http://www.in.gov/idem/nps/3893.htm" target="_blank">here</a>.</p>
-<p>In part 1 of this tutorial we will be exploring these data sets to become more familiar with them. In part 2 we will design graphs that visualize the relationship between daily precipitation and the sampled data from the watershed. In part 2 we will write functions and use loops to automate the data manipulation necessary to make the graphs, and to automate the creation of the graphs themselves.</p>
+<p>In part 1 of this tutorial we will be exploring these data sets to become more familiar with them. In part 2 we will design graphs that visualize the relationship between daily precipitation and the sampled data from the watershed. In part 3 we will write functions and use loops to automate the data manipulation necessary to make the graphs, and to automate the creation of the graphs themselves.</p>
 </div>
 <div id="chemistry-data" class="section level1">
 <h1>Chemistry data</h1>
@@ -79,19 +79,53 @@ install_github(&quot;InDEM/IDEMdata&quot;)</code></pre>
 <pre class="r"><code>data(deep_river_chemistry)
 chem.df &lt;- deep_river_chemistry
 View(chem.df)</code></pre>
-<p>This data set is in a “long” format, meaning that there is one “value” column and one “variable” column (in this data set, the value is in the <code>LAB_RESULT</code> column and the variables are in the <code>SUBSTANCE_NAME</code> column). We may want this data in a wide format, meaning there are columns for every variable. To do this, we use the <code>reshape2</code> package, as explained in a <a href="http://rpubs.com/NateByers/manipRidem" target="_blank">previous tutorial</a>.</p>
-<p>In order to do this it’s helpful to identify the minimum columns we need to keep in order to preserve all of the values. In other words, what columns are necessary to identify a unique record? In the function below, the columns to the left of <code>~</code> in the formula are the columns identified as necessary to preserve every value (plus a few that are kept for convenince), the column on the right of <code>~</code> is the variable column, and <code>LAB_RESULT</code> is identified as the <code>value.var</code>.</p>
+<p>The first thing we need to deal with are duplicate rows in the data frame. We can find those duplicates by using the <code>duplicated()</code> funtion, which returns a logical vector.</p>
+<pre class="r"><code>duplicates &lt;- duplicated(chem.df) 
+head(duplicates, 10)</code></pre>
+<pre><code>##  [1] FALSE FALSE FALSE FALSE FALSE FALSE FALSE FALSE FALSE FALSE</code></pre>
+<p>The <code>duplicates</code> vector will have a value of <code>TRUE</code> for any row that is a duplicate of a previous row. We’ll use negation of this logical vector to subset out all of the rows that are <em>not</em> duplicates.</p>
+<pre class="r"><code>chem.df &lt;- chem.df[!duplicates, ]</code></pre>
+<p>Another thing to notice is that there are negative values in the <code>LAB_RESULT</code> column that don’t make sense. For example:</p>
+<pre class="r"><code>chem.df[c(36, 71), c(&quot;ACTIVITY_END_DATE&quot;, &quot;SUBSTANCE_NAME&quot;, &quot;LAB_RESULT&quot;, &quot;LAB_RESULT_TEXT&quot;)]</code></pre>
+<pre><code>##    ACTIVITY_END_DATE    SUBSTANCE_NAME LAB_RESULT LAB_RESULT_TEXT
+## 36    4/8/2013 13:00 Nitrogen, Ammonia         -1             &lt;.1
+## 73   6/10/2013 12:20 Coliforms (Total)         -2         &gt;2419.6</code></pre>
+<p>The <code>LAB_RESULT</code> column has a <code>numeric</code> class, and we can see that the <code>LAB_RESULT_TEXT</code> column has <code>&lt;</code> and <code>&gt;</code> symbols. These are threshold values, and the negative values in the numeric column are there to mark threshold results. For maxium thresholds (i.e., text values with <code>&gt;</code>) we’re going to just replace the <code>numeric</code> value in the <code>LAB_RESULT</code> column with the max threshold value (we just drop the <code>&gt;</code>). For text values that are minimum thresholds (<code>&lt;</code>) we’ll replace the <code>numeric</code> value with <em>half</em> of the minimum threshold</p>
+<p>First, the maximum thresholds:</p>
+<pre class="r"><code># create a subset of rows with &gt;
+max.thresh.df &lt;- chem.df[grepl(&quot;&gt;&quot;, chem.df$LAB_RESULT_TEXT, , fixed = T), ]
+
+# create a character vector of LAB_RESULT_TEXT values with &gt; removed
+max.thresh.numeric &lt;- gsub(&quot;&gt;&quot;, &quot;&quot;, max.thresh.df$LAB_RESULT_TEXT, fixed = T)
+
+# convert the character vector to numeric
+max.thresh.numeric &lt;- as.numeric(max.thresh.numeric)
+
+# replace those negative numeric values with the numeric values vector
+chem.df[grepl(&quot;&gt;&quot;, chem.df$LAB_RESULT_TEXT, fixed = T), &quot;LAB_RESULT&quot;] &lt;- max.thresh.numeric</code></pre>
+<p>Now we replace the minimum threshold values with half the threshold:</p>
+<pre class="r"><code># create a subset of rows with &lt;
+min.thresh.df &lt;- chem.df[grepl(&quot;&lt;&quot;, chem.df$LAB_RESULT_TEXT, , fixed = T), ]
+
+# create a character vector of LAB_RESULT_TEXT values with &gt; removed
+min.thresh.numeric &lt;- gsub(&quot;&lt;&quot;, &quot;&quot;, min.thresh.df$LAB_RESULT_TEXT, fixed = T)
+
+# convert the character vector to numeric
+min.thresh.numeric &lt;- as.numeric(min.thresh.numeric)
+
+# replace those negative numeric values with the numeric values vector
+chem.df[grepl(&quot;&lt;&quot;, chem.df$LAB_RESULT_TEXT, fixed = T), &quot;LAB_RESULT&quot;] &lt;- min.thresh.numeric/2</code></pre>
+<p>Also, this data set is in a “long” format. This means that there is one “value” column and one “variable” column (in this data set, the values are in the <code>LAB_RESULT</code> column and the variables are in the <code>SUBSTANCE_NAME</code> column). We may want this data in a wide format, meaning there are columns for every variable. To do this, we use the <code>reshape2</code> package, as explained in a <a href="http://rpubs.com/NateByers/manipRidem" target="_blank">previous tutorial</a>.</p>
+<p>It’s helpful to identify the minimum columns we need to keep in order to preserve all of the values. In other words, what columns are necessary to identify a unique record? In the dcast function below, the columns to the left of <code>~</code> in the formula are the columns identified as necessary to preserve every value (plus a few that are kept for convenince), the column on the right of <code>~</code> is the variable column, and <code>LAB_RESULT</code> is identified as the <code>value.var</code>.</p>
 <pre class="r"><code>library(reshape2)
-wide.chem.df &lt;- dcast(chem.df, (STATION_NAME + ACTIVITY_END_DATE + WATERBODY_NAME 
-                   + UTM_EAST + UTM_NORTH + COUNTY_NAME  
-                   ~ SUBSTANCE_NAME), value.var = &quot;LAB_RESULT&quot;, 
-                   fun.aggregate = mean, na.rm=TRUE)
+wide.chem.df &lt;- dcast(chem.df, STATION_NAME + ACTIVITY_NO + ACTIVITY_END_DATE 
+                      + WATERBODY_NAME + UTM_EAST + UTM_NORTH + COUNTY_NAME 
+                      ~ SUBSTANCE_NAME, value.var = 'LAB_RESULT'))
 View(wide.chem.df)</code></pre>
-<p>The <code>fun.aggregate = mean</code> parameter is necessary because there are a few values that are duplicated for one location, date, and substance. So the values for each substance variable are actually the means of any values for the same place, activity end date, and substance.</p>
-<p>In order to make this data frame useful, we need to rename the columns. We can use the <code>colname()</code> function to rename some of the columns. Here we rename the first 7 columns:</p>
-<pre class="r"><code>colnames(wide.chem.df)[1:7] &lt;- c(&quot;station&quot;, &quot;end_date&quot;, &quot;waterbody&quot;, &quot;utm_e&quot;,
-                               &quot;utm_n&quot;, &quot;county&quot;, &quot;value&quot;)</code></pre>
-<p>However, it is more efficient to use regular expressions to do this. We won’t go into how regular expressions work (a thorough introduction can be found <a href="http://gastonsanchez.com/Handling_and_Processing_Strings_in_R.pdf" target="_blank">here</a>), but here is some code that will tidy up our column names courtesy of Eric Bailey:</p>
+<p>In order to make this data frame useful, we need to rename the columns. We can use the <code>colname()</code> function to rename some of the columns. Here we rename the first 7 columns, as well as one of the turbidity columns:</p>
+<pre class="r"><code>colnames(wide.chem.df)[c(1:7, 33)] &lt;- c(&quot;station&quot;, &quot;end_date&quot;, &quot;waterbody&quot;, &quot;utm_e&quot;,
+                               &quot;utm_n&quot;, &quot;county&quot;, &quot;value&quot;, &quot;turbidity_hach&quot;)</code></pre>
+<p>However, it is more efficient to use regular expressions to do this. We won’t go into how regular expressions work (a thorough introduction to string manipulation in R can be found <a href="http://gastonsanchez.com/Handling_and_Processing_Strings_in_R.pdf" target="_blank">here</a>), but here is some code that will tidy up our column names, courtesy of Eric Bailey:</p>
 <pre class="r"><code># Convert column names to lower case
 colnames(wide.chem.df) &lt;- tolower(colnames(wide.chem.df))
 
@@ -106,6 +140,11 @@ colnames(wide.chem.df) &lt;- gsub(&quot;^\\s|\\s$&quot;, &quot;&quot;, colnames(
 
 # Replace remaining spaces with periods
 colnames(wide.chem.df) &lt;- gsub(&quot; &quot;, &quot;\\_&quot;, colnames(wide.chem.df)) </code></pre>
+<hr />
+</div>
+<div id="r-markdown" class="section level1">
+<h1>R Markdown</h1>
+<p>This tutorial was created using RStudio’s <a href="http://rmarkdown.rstudio.com/" target="_blank">R Markdown</a>. The code can be found on <a href="https://github.com/NateByers/precipRidem" target="_blank">GitHub</a>.</p>
 </div>
 
 
