@@ -1,5 +1,5 @@
 ---
-title: "R Tutorial: Precipitation Graphs, Pt 1"
+title: 'R Tutorial: Precipitation Graphs, Pt 1'
 author: "Nathan Byers"
 date: "Tuesday, July 09, 2014"
 output:
@@ -67,6 +67,8 @@ chem.df <- deep_river_chemistry
 View(chem.df)
 ```
 
+## Dealing with duplicates
+
 The first thing we need to deal with are duplicate rows in the data frame. We
 can find those duplicates by using the `duplicated()` funtion, which returns a 
 logical vector.
@@ -83,6 +85,8 @@ of the rows that are _not_ duplicates.
 ```{r}
 chem.df <- chem.df[!duplicates, ]
 ```
+
+## Handling thresholds
 
 Another thing to notice is that there are negative values in the `LAB_RESULT` 
 column that don't make sense. For example:
@@ -131,6 +135,8 @@ min.thresh.numeric <- as.numeric(min.thresh.numeric)
 chem.df[grepl("<", chem.df$LAB_RESULT_TEXT, fixed = T), "LAB_RESULT"] <- min.thresh.numeric/2
 ```
 
+## Reshaping
+
 Also, this data set is in a "long" format. This 
 means that there is one "value" column and one "variable" column (in this data 
 set, the values are in the `LAB_RESULT` column and the variables are in the 
@@ -166,8 +172,9 @@ use the `colname()` function to rename some of the columns. Here we rename the f
 7 columns, as well as one of the turbidity columns:
 
 ```{r}
-colnames(wide.chem.df)[c(1:7, 33)] <- c("station", "end_date", "waterbody", "utm_e",
-                               "utm_n", "county", "value", "turbidity_hach")
+colnames(wide.chem.df)[c(1:8, 33)] <- c("station", "activity", "date", "waterbody",
+                                        "utm_e", "utm_n", "county", "value", 
+                                        "turbidity_hach")
 ```
 
 However, it is more efficient to use regular expressions to do this. We won't go
@@ -194,9 +201,33 @@ colnames(wide.chem.df) <- gsub("^\\s|\\s$", "", colnames(wide.chem.df))
 colnames(wide.chem.df) <- gsub(" ", "\\_", colnames(wide.chem.df)) 
 ```
 
+# Precipitation data
+
+The other data set in the `IDEMdata` package that we will be using for this 
+tutorial is the `precip_hobart` data frame.
+
+```{r}
+data(precip_hobart)
+```
+
+## Dates
+
+To make things simpler for creating graphs, we will want to add the precipitation 
+values to the `wide.chem.df` data frame. We'll use the `merge()` function to do
+this, but first we need to make sure that the date columns for both data sets
+are in the same format.
+
+First we look at the date column in the `wide.chem.df` data frame.
+
+```{r}
+class(wide.chem.df$date)
+head(wide.chem.df$date)
+```
+...
 -------------------------------------------------------------------------------
 
-# R Markdown
+### R Markdown
+
 
 This tutorial was created using RStudio's <a href="http://rmarkdown.rstudio.com/"
 target="_blank">R Markdown</a>. The code can be found on <a href="https://github.com/NateByers/precipRidem"

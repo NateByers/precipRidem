@@ -79,12 +79,17 @@ install_github(&quot;InDEM/IDEMdata&quot;)</code></pre>
 <pre class="r"><code>data(deep_river_chemistry)
 chem.df &lt;- deep_river_chemistry
 View(chem.df)</code></pre>
+<div id="dealing-with-duplicates" class="section level2">
+<h2>Dealing with duplicates</h2>
 <p>The first thing we need to deal with are duplicate rows in the data frame. We can find those duplicates by using the <code>duplicated()</code> funtion, which returns a logical vector.</p>
 <pre class="r"><code>duplicates &lt;- duplicated(chem.df) 
 head(duplicates, 10)</code></pre>
 <pre><code>##  [1] FALSE FALSE FALSE FALSE FALSE FALSE FALSE FALSE FALSE FALSE</code></pre>
 <p>The <code>duplicates</code> vector will have a value of <code>TRUE</code> for any row that is a duplicate of a previous row. We’ll use negation of this logical vector to subset out all of the rows that are <em>not</em> duplicates.</p>
 <pre class="r"><code>chem.df &lt;- chem.df[!duplicates, ]</code></pre>
+</div>
+<div id="handling-thresholds" class="section level2">
+<h2>Handling thresholds</h2>
 <p>Another thing to notice is that there are negative values in the <code>LAB_RESULT</code> column that don’t make sense. For example:</p>
 <pre class="r"><code>chem.df[c(36, 71), c(&quot;ACTIVITY_END_DATE&quot;, &quot;SUBSTANCE_NAME&quot;, &quot;LAB_RESULT&quot;, &quot;LAB_RESULT_TEXT&quot;)]</code></pre>
 <pre><code>##    ACTIVITY_END_DATE    SUBSTANCE_NAME LAB_RESULT LAB_RESULT_TEXT
@@ -115,6 +120,9 @@ min.thresh.numeric &lt;- as.numeric(min.thresh.numeric)
 
 # replace those negative numeric values with the numeric values vector
 chem.df[grepl(&quot;&lt;&quot;, chem.df$LAB_RESULT_TEXT, fixed = T), &quot;LAB_RESULT&quot;] &lt;- min.thresh.numeric/2</code></pre>
+</div>
+<div id="reshaping" class="section level2">
+<h2>Reshaping</h2>
 <p>Also, this data set is in a “long” format. This means that there is one “value” column and one “variable” column (in this data set, the values are in the <code>LAB_RESULT</code> column and the variables are in the <code>SUBSTANCE_NAME</code> column). We may want this data in a wide format, meaning there are columns for every variable. To do this, we use the <code>reshape2</code> package, as explained in a <a href="http://rpubs.com/NateByers/manipRidem" target="_blank">previous tutorial</a>.</p>
 <p>It’s helpful to identify the minimum columns we need to keep in order to preserve all of the values. In other words, what columns are necessary to identify a unique record? In the dcast function below, the columns to the left of <code>~</code> in the formula are the columns identified as necessary to preserve every value (plus a few that are kept for convenince), the column on the right of <code>~</code> is the variable column, and <code>LAB_RESULT</code> is identified as the <code>value.var</code>.</p>
 <pre class="r"><code>library(reshape2)
@@ -123,8 +131,9 @@ wide.chem.df &lt;- dcast(chem.df, STATION_NAME + ACTIVITY_NO + ACTIVITY_END_DATE
                       ~ SUBSTANCE_NAME, value.var = 'LAB_RESULT'))
 View(wide.chem.df)</code></pre>
 <p>In order to make this data frame useful, we need to rename the columns. We can use the <code>colname()</code> function to rename some of the columns. Here we rename the first 7 columns, as well as one of the turbidity columns:</p>
-<pre class="r"><code>colnames(wide.chem.df)[c(1:7, 33)] &lt;- c(&quot;station&quot;, &quot;end_date&quot;, &quot;waterbody&quot;, &quot;utm_e&quot;,
-                               &quot;utm_n&quot;, &quot;county&quot;, &quot;value&quot;, &quot;turbidity_hach&quot;)</code></pre>
+<pre class="r"><code>colnames(wide.chem.df)[c(1:8, 33)] &lt;- c(&quot;station&quot;, &quot;activity&quot;, &quot;date&quot;, &quot;waterbody&quot;,
+                                        &quot;utm_e&quot;, &quot;utm_n&quot;, &quot;county&quot;, &quot;value&quot;, 
+                                        &quot;turbidity_hach&quot;)</code></pre>
 <p>However, it is more efficient to use regular expressions to do this. We won’t go into how regular expressions work (a thorough introduction to string manipulation in R can be found <a href="http://gastonsanchez.com/Handling_and_Processing_Strings_in_R.pdf" target="_blank">here</a>), but here is some code that will tidy up our column names, courtesy of Eric Bailey:</p>
 <pre class="r"><code># Convert column names to lower case
 colnames(wide.chem.df) &lt;- tolower(colnames(wide.chem.df))
@@ -140,11 +149,29 @@ colnames(wide.chem.df) &lt;- gsub(&quot;^\\s|\\s$&quot;, &quot;&quot;, colnames(
 
 # Replace remaining spaces with periods
 colnames(wide.chem.df) &lt;- gsub(&quot; &quot;, &quot;\\_&quot;, colnames(wide.chem.df)) </code></pre>
-<hr />
 </div>
-<div id="r-markdown" class="section level1">
-<h1>R Markdown</h1>
+</div>
+<div id="precipitation-data" class="section level1">
+<h1>Precipitation data</h1>
+<p>The other data set in the <code>IDEMdata</code> package that we will be using for this tutorial is the <code>precip_hobart</code> data frame.</p>
+<pre class="r"><code>data(precip_hobart)</code></pre>
+<div id="dates" class="section level2">
+<h2>Dates</h2>
+<p>To make things simpler for creating graphs, we will want to add the precipitation values to the <code>wide.chem.df</code> data frame. We’ll use the <code>merge()</code> function to do this, but first we need to make sure that the date columns for both data sets are in the same format.</p>
+<p>First we look at the date column in the <code>wide.chem.df</code> data frame.</p>
+<pre class="r"><code>class(wide.chem.df$date)</code></pre>
+<pre><code>## [1] &quot;character&quot;</code></pre>
+<pre class="r"><code>head(wide.chem.df$date)</code></pre>
+<pre><code>## [1] &quot;6/24/2013 11:55&quot; &quot;7/22/2013 11:35&quot; &quot;4/8/2013 13:00&quot;  &quot;5/6/2013 12:00&quot; 
+## [5] &quot;6/10/2013 12:20&quot; &quot;9/9/2013 11:25&quot;</code></pre>
+</div>
+<div id="section" class="section level2">
+<h2>…</h2>
+<div id="r-markdown" class="section level3">
+<h3>R Markdown</h3>
 <p>This tutorial was created using RStudio’s <a href="http://rmarkdown.rstudio.com/" target="_blank">R Markdown</a>. The code can be found on <a href="https://github.com/NateByers/precipRidem" target="_blank">GitHub</a>.</p>
+</div>
+</div>
 </div>
 
 
