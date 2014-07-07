@@ -196,7 +196,7 @@ class(precip_hobart$Date)</code></pre>
 <h2>Merging</h2>
 <p>Now we’re ready to merge the precipitation data with the sampling data. We’ll use the <code>merge()</code> function that was introduced in <a href="http://rpubs.com/NateByers/manipRidem" target="_blank">this tutorial</a>.</p>
 <pre class="r"><code>colnames(precip_hobart) &lt;- c(&quot;date&quot;, &quot;precipitation&quot;)
-precip.wide.df &lt;- merge(wide.chem.df, precip_hobart, all.x = T)</code></pre>
+wide.precip.df &lt;- merge(wide.chem.df, precip_hobart, all.x = T)</code></pre>
 </div>
 <div id="section" class="section level2">
 <h2>…</h2>

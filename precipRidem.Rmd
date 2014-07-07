@@ -262,7 +262,7 @@ target="_blank">this tutorial</a>.
 
 ```{r}
 colnames(precip_hobart) <- c("date", "precipitation")
-precip.wide.df <- merge(wide.chem.df, precip_hobart, all.x = T)
+wide.precip.df <- merge(wide.chem.df, precip_hobart, all.x = T)
 ```
 
 
