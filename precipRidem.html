@@ -69,9 +69,9 @@ install_github(&quot;InDEM/IDEMdata&quot;)</code></pre>
 <p>Now we load the <code>IDEMdata</code> package and take a look at the package description help file.</p>
 <pre class="r"><code>library(IDEMdata)
 ?IDEMdata</code></pre>
-<p>In the bottom right panel of <a href="rstudio.com" target="_blank">RStudio</a> you will see the file that describes what’s in this package. At the very bottom of that file, click on “Index” and you will see all of the data sets that are in the package.</p>
+<p>In the bottom right panel of <a href="http://www.rstudio.com/" target="_blank">RStudio</a> you will see the file that describes what’s in this package. At the very bottom of that file, click on “Index” and you will see all of the data sets that are in the package.</p>
 <p>The “deep_river” data frames are data that were collected by sampling the Deep River - Portage Burns Watershed in Lake and Porter Counties. These data are just a subset of sampling that took place in the watershed between April 2013 and March 2014. The purpose of the sampling was to get a baseline assessment of the watershed for TMDL development and watershed planning. More information about the study can be found <a href="http://www.in.gov/idem/nps/3893.htm" target="_blank">here</a>.</p>
-<p>In part 1 of this tutorial we will be exploring these data sets to become more familiar with them. In part 2 we will design graphs that visualize the relationship between daily precipitation and the sampled data from the watershed. In part 3 we will write functions and use loops to automate the data manipulation necessary to make the graphs, and to automate the creation of the graphs themselves.</p>
+<p>In part 1 of this tutorial we will tidy up and merge two data frames from the <code>IDEMdata</code> package. In part 2 we will design graphs that visualize the relationship between daily precipitation and the sampled data from the Deep River - Portage Burns Watershed. In part 3 we will write functions and use loops to automate the creation of these graphs.</p>
 </div>
 <div id="chemistry-data" class="section level1">
 <h1>Chemistry data</h1>
@@ -85,26 +85,26 @@ View(chem.df)</code></pre>
 <pre class="r"><code>duplicates &lt;- duplicated(chem.df) 
 head(duplicates, 10)</code></pre>
 <pre><code>##  [1] FALSE FALSE FALSE FALSE FALSE FALSE FALSE FALSE FALSE FALSE</code></pre>
-<p>The <code>duplicates</code> vector will have a value of <code>TRUE</code> for any row that is a duplicate of a previous row. We’ll use negation of this logical vector to subset out all of the rows that are <em>not</em> duplicates.</p>
+<p>The <code>duplicates</code> vector will have a value of <code>TRUE</code> for any row that is a duplicate of a previous row. We’ll use the negation of this logical vector to subset out all of the rows that are <em>not</em> duplicates.</p>
 <pre class="r"><code>chem.df &lt;- chem.df[!duplicates, ]</code></pre>
 </div>
 <div id="handling-thresholds" class="section level2">
 <h2>Handling thresholds</h2>
-<p>Another thing to notice is that there are negative values in the <code>LAB_RESULT</code> column that don’t make sense. For example:</p>
+<p>Another thing to notice is that there are some negative values in the <code>LAB_RESULT</code> column that don’t make sense. For example:</p>
 <pre class="r"><code>chem.df[c(36, 71), c(&quot;ACTIVITY_END_DATE&quot;, &quot;SUBSTANCE_NAME&quot;, &quot;LAB_RESULT&quot;, &quot;LAB_RESULT_TEXT&quot;)]</code></pre>
 <pre><code>##    ACTIVITY_END_DATE    SUBSTANCE_NAME LAB_RESULT LAB_RESULT_TEXT
 ## 36    4/8/2013 13:00 Nitrogen, Ammonia         -1             &lt;.1
 ## 73   6/10/2013 12:20 Coliforms (Total)         -2         &gt;2419.6</code></pre>
-<p>The <code>LAB_RESULT</code> column has a <code>numeric</code> class, and we can see that the <code>LAB_RESULT_TEXT</code> column has <code>&lt;</code> and <code>&gt;</code> symbols. These are threshold values, and the negative values in the numeric column are there to mark threshold results. For maxium thresholds (i.e., text values with <code>&gt;</code>) we’re going to just replace the <code>numeric</code> value in the <code>LAB_RESULT</code> column with the max threshold value (we just drop the <code>&gt;</code>). For text values that are minimum thresholds (<code>&lt;</code>) we’ll replace the <code>numeric</code> value with <em>half</em> of the minimum threshold</p>
+<p>The <code>LAB_RESULT</code> column has a <code>numeric</code> class, and we can see that the <code>LAB_RESULT_TEXT</code> column has <code>&lt;</code> and <code>&gt;</code> symbols. These are threshold values, and the negative values in the numeric column are there to mark threshold results. For maxium thresholds (i.e., text values with <code>&gt;</code>) we’re going to just replace the <code>numeric</code> value in the <code>LAB_RESULT</code> column with the max threshold value. For example, if the text value is <code>&quot;&gt;2419.6&quot;</code> we’ll insert the numeric value <code>2419.6</code> into the <code>LAB_RESULT</code> column. For text values that are minimum thresholds (<code>&lt;</code>) we’ll replace the <code>numeric</code> value with <em>half</em> of the minimum threshold (e.g., for <code>&quot;&lt;.1&quot;</code> we insert the numeric value <code>0.05</code>).</p>
 <p>First, the maximum thresholds:</p>
 <pre class="r"><code># create a subset of rows with &gt;
 max.thresh.df &lt;- chem.df[grepl(&quot;&gt;&quot;, chem.df$LAB_RESULT_TEXT, , fixed = T), ]
 
 # create a character vector of LAB_RESULT_TEXT values with &gt; removed
-max.thresh.numeric &lt;- gsub(&quot;&gt;&quot;, &quot;&quot;, max.thresh.df$LAB_RESULT_TEXT, fixed = T)
+max.thresh.character &lt;- gsub(&quot;&gt;&quot;, &quot;&quot;, max.thresh.df$LAB_RESULT_TEXT, fixed = T)
 
 # convert the character vector to numeric
-max.thresh.numeric &lt;- as.numeric(max.thresh.numeric)
+max.thresh.numeric &lt;- as.numeric(max.thresh.character)
 
 # replace those negative numeric values with the numeric values vector
 chem.df[grepl(&quot;&gt;&quot;, chem.df$LAB_RESULT_TEXT, fixed = T), &quot;LAB_RESULT&quot;] &lt;- max.thresh.numeric</code></pre>
@@ -113,27 +113,26 @@ chem.df[grepl(&quot;&gt;&quot;, chem.df$LAB_RESULT_TEXT, fixed = T), &quot;LAB_R
 min.thresh.df &lt;- chem.df[grepl(&quot;&lt;&quot;, chem.df$LAB_RESULT_TEXT, , fixed = T), ]
 
 # create a character vector of LAB_RESULT_TEXT values with &gt; removed
-min.thresh.numeric &lt;- gsub(&quot;&lt;&quot;, &quot;&quot;, min.thresh.df$LAB_RESULT_TEXT, fixed = T)
+min.thresh.character &lt;- gsub(&quot;&lt;&quot;, &quot;&quot;, min.thresh.df$LAB_RESULT_TEXT, fixed = T)
 
 # convert the character vector to numeric
-min.thresh.numeric &lt;- as.numeric(min.thresh.numeric)
+min.thresh.numeric &lt;- as.numeric(min.thresh.character)
 
 # replace those negative numeric values with the numeric values vector
 chem.df[grepl(&quot;&lt;&quot;, chem.df$LAB_RESULT_TEXT, fixed = T), &quot;LAB_RESULT&quot;] &lt;- min.thresh.numeric/2</code></pre>
 </div>
 <div id="reshaping" class="section level2">
 <h2>Reshaping</h2>
-<p>Also, this data set is in a “long” format. This means that there is one “value” column and one “variable” column (in this data set, the values are in the <code>LAB_RESULT</code> column and the variables are in the <code>SUBSTANCE_NAME</code> column). We may want this data in a wide format, meaning there are columns for every variable. To do this, we use the <code>reshape2</code> package, as explained in a <a href="http://rpubs.com/NateByers/manipRidem" target="_blank">previous tutorial</a>.</p>
-<p>It’s helpful to identify the minimum columns we need to keep in order to preserve all of the values. In other words, what columns are necessary to identify a unique record? In the dcast function below, the columns to the left of <code>~</code> in the formula are the columns identified as necessary to preserve every value (plus a few that are kept for convenince), the column on the right of <code>~</code> is the variable column, and <code>LAB_RESULT</code> is identified as the <code>value.var</code>.</p>
+<p>The <code>chem.df</code> data frame is in a “long” format. This means that there is one “value” column and one “variable” column (in this data frame, the numeric values are in the <code>LAB_RESULT</code> column and the variables are in the <code>SUBSTANCE_NAME</code> column). We may want this data in a wide format, meaning there are columns for every variable. To do this, we use the <code>reshape2</code> package, as explained in a <a href="http://rpubs.com/NateByers/manipRidem" target="_blank">previous tutorial</a>.</p>
+<p>It’s helpful to identify the minimum columns we need to keep in order to preserve all of the values. In other words, what columns are necessary to identify a unique record? In the <code>dcast()</code> function below, the columns to the left of <code>~</code> in the formula are the columns identified as necessary to preserve every value (plus a few that are kept for convenince), the column on the right of <code>~</code> is the variable column, and <code>LAB_RESULT</code> is identified as the <code>value.var</code>.</p>
 <pre class="r"><code>library(reshape2)
 wide.chem.df &lt;- dcast(chem.df, STATION_NAME + ACTIVITY_NO + ACTIVITY_END_DATE 
                       + WATERBODY_NAME + UTM_EAST + UTM_NORTH + COUNTY_NAME 
                       ~ SUBSTANCE_NAME, value.var = 'LAB_RESULT'))
 View(wide.chem.df)</code></pre>
 <p>In order to make this data frame useful, we need to rename the columns. We can use the <code>colname()</code> function to rename some of the columns. Here we rename the first 7 columns, as well as one of the turbidity columns:</p>
-<pre class="r"><code>colnames(wide.chem.df)[c(1:8, 33)] &lt;- c(&quot;station&quot;, &quot;activity&quot;, &quot;date&quot;, &quot;waterbody&quot;,
-                                        &quot;utm_e&quot;, &quot;utm_n&quot;, &quot;county&quot;, &quot;value&quot;, 
-                                        &quot;turbidity_hach&quot;)</code></pre>
+<pre class="r"><code>colnames(wide.chem.df)[c(1:7, 32)] &lt;- c(&quot;station&quot;, &quot;activity&quot;, &quot;date&quot;, &quot;waterbody&quot;,
+                                        &quot;utm_e&quot;, &quot;utm_n&quot;, &quot;county&quot;, &quot;turbidity_hach&quot;)</code></pre>
 <p>However, it is more efficient to use regular expressions to do this. We won’t go into how regular expressions work (a thorough introduction to string manipulation in R can be found <a href="http://gastonsanchez.com/Handling_and_Processing_Strings_in_R.pdf" target="_blank">here</a>), but here is some code that will tidy up our column names, courtesy of Eric Bailey:</p>
 <pre class="r"><code># Convert column names to lower case
 colnames(wide.chem.df) &lt;- tolower(colnames(wide.chem.df))
@@ -154,16 +153,50 @@ colnames(wide.chem.df) &lt;- gsub(&quot; &quot;, &quot;\\_&quot;, colnames(wide.
 <div id="precipitation-data" class="section level1">
 <h1>Precipitation data</h1>
 <p>The other data set in the <code>IDEMdata</code> package that we will be using for this tutorial is the <code>precip_hobart</code> data frame.</p>
-<pre class="r"><code>data(precip_hobart)</code></pre>
+<pre class="r"><code>data(precip_hobart)
+head(precip_hobart)</code></pre>
+<pre><code>##         Date Precipitation
+## 1 2013-04-01             0
+## 2 2013-04-02             0
+## 3 2013-04-03             0
+## 4 2013-04-04             0
+## 5 2013-04-05             0
+## 6 2013-04-06             0</code></pre>
 <div id="dates" class="section level2">
 <h2>Dates</h2>
-<p>To make things simpler for creating graphs, we will want to add the precipitation values to the <code>wide.chem.df</code> data frame. We’ll use the <code>merge()</code> function to do this, but first we need to make sure that the date columns for both data sets are in the same format.</p>
+<p>To make things simpler for creating graphs, we will want to add the precipitation values to the <code>wide.chem.df</code> data frame. We’ll use the <code>merge()</code> function to do this, but first we need to make sure that the date columns for both data frames are in the same format.</p>
 <p>First we look at the date column in the <code>wide.chem.df</code> data frame.</p>
 <pre class="r"><code>class(wide.chem.df$date)</code></pre>
 <pre><code>## [1] &quot;character&quot;</code></pre>
 <pre class="r"><code>head(wide.chem.df$date)</code></pre>
 <pre><code>## [1] &quot;6/24/2013 11:55&quot; &quot;7/22/2013 11:35&quot; &quot;4/8/2013 13:00&quot;  &quot;5/6/2013 12:00&quot; 
 ## [5] &quot;6/10/2013 12:20&quot; &quot;9/9/2013 11:25&quot;</code></pre>
+<p>Right now the date column is a has the <code>&quot;character&quot;</code> class. We need to convert it to a date/time class. The simplest way to convert to a date in R is to use the <code>as.Date()</code> function. However, the <code>&quot;Date&quot;</code> class does not store time information. In this case, we will use the <code>as.POSIXct()</code> function to convert it to a class that will retain the time information. (See <a href="https://www.stat.berkeley.edu/classes/s133/dates.html" target="_blank">this site</a> for a good overview of date and time classes in R.)</p>
+<pre class="r"><code>wide.chem.df$date &lt;- as.POSIXct(wide.chem.df$date, 
+                                format = &quot;%m/%d/%Y %H:%M&quot;,
+                                tz = &quot;America/Chicago&quot;)
+class(wide.chem.df$date)</code></pre>
+<pre><code>## [1] &quot;POSIXct&quot; &quot;POSIXt&quot;</code></pre>
+<pre class="r"><code>head(wide.chem.df$date)</code></pre>
+<pre><code>## [1] &quot;2013-06-24 11:55:00 CDT&quot; &quot;2013-07-22 11:35:00 CDT&quot;
+## [3] &quot;2013-04-08 13:00:00 CDT&quot; &quot;2013-05-06 12:00:00 CDT&quot;
+## [5] &quot;2013-06-10 12:20:00 CDT&quot; &quot;2013-09-09 11:25:00 CDT&quot;</code></pre>
+<p>Now we need to make the date column in the <code>precip_hobart</code> data frame the same class. However, since the <code>POSIXct</code> class reqires a time, we’ll need to add a time to each date in the <code>precip_hobart</code> data frame.</p>
+<pre class="r"><code>precip_hobart$Date &lt;- paste(precip_hobart$Date, &quot;12:00&quot;)
+precip_hobart$Date &lt;- as.POSIXct(precip_hobart$Date,
+                                 tz = &quot;America/Chicago&quot;)
+class(precip_hobart$Date)</code></pre>
+<pre><code>## [1] &quot;POSIXct&quot; &quot;POSIXt&quot;</code></pre>
+<pre class="r"><code>head(precip_hobart$Date)</code></pre>
+<pre><code>## [1] &quot;2013-04-01 12:00:00 CDT&quot; &quot;2013-04-02 12:00:00 CDT&quot;
+## [3] &quot;2013-04-03 12:00:00 CDT&quot; &quot;2013-04-04 12:00:00 CDT&quot;
+## [5] &quot;2013-04-05 12:00:00 CDT&quot; &quot;2013-04-06 12:00:00 CDT&quot;</code></pre>
+</div>
+<div id="merging" class="section level2">
+<h2>Merging</h2>
+<p>Now we’re ready to merge the precipitation data with the sampling data. We’ll use the <code>merge()</code> function that was introduced in <a href="http://rpubs.com/NateByers/manipRidem" target="_blank">this tutorial</a>.</p>
+<pre class="r"><code>colnames(precip_hobart) &lt;- c(&quot;date&quot;, &quot;precipitation&quot;)
+precip.wide.df &lt;- merge(wide.chem.df, precip_hobart, all.x = T)</code></pre>
 </div>
 <div id="section" class="section level2">
 <h2>…</h2>

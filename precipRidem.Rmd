@@ -31,7 +31,7 @@ library(IDEMdata)
 ?IDEMdata
 ```
 
-In the bottom right panel of <a href="rstudio.com" target="_blank">RStudio</a> 
+In the bottom right panel of <a href="http://www.rstudio.com/" target="_blank">RStudio</a> 
 you will see the file that describes what's in this package. At the very bottom 
 of that file, click on "Index" and you will see all of the data sets that are in
 the package. 
@@ -43,12 +43,11 @@ and March 2014. The purpose of the sampling was to get a baseline assessment of
 the watershed for TMDL development and watershed planning. More information about
 the study can be found <a href="http://www.in.gov/idem/nps/3893.htm" target="_blank">here</a>.
 
-In part 1 of this tutorial we will be exploring these data sets
-to become more familiar with them. In part 2 we will design graphs that visualize
+In part 1 of this tutorial we will tidy up and merge two data frames from
+the `IDEMdata` package. In part 2 we will design graphs that visualize
 the relationship between daily precipitation and the sampled data from the 
-watershed. In part 3 we will write functions and use loops to automate the data 
-manipulation necessary to make the graphs, and to automate the creation of the 
-graphs themselves.
+Deep River - Portage Burns Watershed. In part 3 we will write functions and use 
+loops to automate the creation of these graphs.
 
 # Chemistry data
 
@@ -79,7 +78,7 @@ head(duplicates, 10)
 ```
 
 The `duplicates` vector will have a value of `TRUE` for any row that is a duplicate
-of a previous row. We'll use negation of this logical vector to subset out all
+of a previous row. We'll use the negation of this logical vector to subset out all
 of the rows that are _not_ duplicates.
 
 ```{r}
@@ -88,7 +87,7 @@ chem.df <- chem.df[!duplicates, ]
 
 ## Handling thresholds
 
-Another thing to notice is that there are negative values in the `LAB_RESULT` 
+Another thing to notice is that there are some negative values in the `LAB_RESULT` 
 column that don't make sense. For example:
 
 ```{r}
@@ -99,9 +98,11 @@ The `LAB_RESULT` column has a `numeric` class, and we can see that the `LAB_RESU
 column has `<` and `>` symbols. These are threshold values, and the negative values
 in the numeric column are there to mark threshold results. For maxium thresholds
 (i.e., text values with `>`) we're going to just replace the `numeric` value in 
-the `LAB_RESULT` column with the max threshold value (we just drop the `>`). 
-For text values that are minimum thresholds (`<`) we'll replace the `numeric` 
-value with _half_ of the minimum threshold
+the `LAB_RESULT` column with the max threshold value. For example, if the text
+value is `">2419.6"` we'll insert the numeric value `2419.6` into the `LAB_RESULT`
+column. For text values that are minimum thresholds (`<`) we'll replace the `numeric` 
+value with _half_ of the minimum threshold (e.g., for `"<.1"` we insert the
+numeric value `0.05`).
 
 First, the maximum thresholds:
 
@@ -110,10 +111,10 @@ First, the maximum thresholds:
 max.thresh.df <- chem.df[grepl(">", chem.df$LAB_RESULT_TEXT, , fixed = T), ]
 
 # create a character vector of LAB_RESULT_TEXT values with > removed
-max.thresh.numeric <- gsub(">", "", max.thresh.df$LAB_RESULT_TEXT, fixed = T)
+max.thresh.character <- gsub(">", "", max.thresh.df$LAB_RESULT_TEXT, fixed = T)
 
 # convert the character vector to numeric
-max.thresh.numeric <- as.numeric(max.thresh.numeric)
+max.thresh.numeric <- as.numeric(max.thresh.character)
 
 # replace those negative numeric values with the numeric values vector
 chem.df[grepl(">", chem.df$LAB_RESULT_TEXT, fixed = T), "LAB_RESULT"] <- max.thresh.numeric
@@ -126,10 +127,10 @@ Now we replace the minimum threshold values with half the threshold:
 min.thresh.df <- chem.df[grepl("<", chem.df$LAB_RESULT_TEXT, , fixed = T), ]
 
 # create a character vector of LAB_RESULT_TEXT values with > removed
-min.thresh.numeric <- gsub("<", "", min.thresh.df$LAB_RESULT_TEXT, fixed = T)
+min.thresh.character <- gsub("<", "", min.thresh.df$LAB_RESULT_TEXT, fixed = T)
 
 # convert the character vector to numeric
-min.thresh.numeric <- as.numeric(min.thresh.numeric)
+min.thresh.numeric <- as.numeric(min.thresh.character)
 
 # replace those negative numeric values with the numeric values vector
 chem.df[grepl("<", chem.df$LAB_RESULT_TEXT, fixed = T), "LAB_RESULT"] <- min.thresh.numeric/2
@@ -137,9 +138,9 @@ chem.df[grepl("<", chem.df$LAB_RESULT_TEXT, fixed = T), "LAB_RESULT"] <- min.thr
 
 ## Reshaping
 
-Also, this data set is in a "long" format. This 
-means that there is one "value" column and one "variable" column (in this data 
-set, the values are in the `LAB_RESULT` column and the variables are in the 
+The `chem.df` data frame is in a "long" format. This means that there is one 
+"value" column and one "variable" column (in this data 
+frame, the numeric values are in the `LAB_RESULT` column and the variables are in the 
 `SUBSTANCE_NAME` column). We may want this data in a wide format, meaning there 
 are columns for every variable. To do this, we use the `reshape2` package, as 
 explained in a <a href="http://rpubs.com/NateByers/manipRidem"
@@ -147,7 +148,7 @@ target="_blank">previous tutorial</a>.
 
 It's helpful to identify the minimum columns we need to keep in order to preserve 
 all of the values. In other words, what columns are necessary to identify a 
-unique record? In the dcast function below, the columns to the left of `~` in the 
+unique record? In the `dcast()` function below, the columns to the left of `~` in the 
 formula are the columns identified as necessary to preserve every value (plus a 
 few that are kept for convenince), the column on the right of `~` is the variable 
 column, and `LAB_RESULT` is identified as the `value.var`. 
@@ -172,9 +173,8 @@ use the `colname()` function to rename some of the columns. Here we rename the f
 7 columns, as well as one of the turbidity columns:
 
 ```{r}
-colnames(wide.chem.df)[c(1:8, 33)] <- c("station", "activity", "date", "waterbody",
-                                        "utm_e", "utm_n", "county", "value", 
-                                        "turbidity_hach")
+colnames(wide.chem.df)[c(1:7, 32)] <- c("station", "activity", "date", "waterbody",
+                                        "utm_e", "utm_n", "county", "turbidity_hach")
 ```
 
 However, it is more efficient to use regular expressions to do this. We won't go
@@ -208,13 +208,14 @@ tutorial is the `precip_hobart` data frame.
 
 ```{r}
 data(precip_hobart)
+head(precip_hobart)
 ```
 
 ## Dates
 
 To make things simpler for creating graphs, we will want to add the precipitation 
 values to the `wide.chem.df` data frame. We'll use the `merge()` function to do
-this, but first we need to make sure that the date columns for both data sets
+this, but first we need to make sure that the date columns for both data frames
 are in the same format.
 
 First we look at the date column in the `wide.chem.df` data frame.
@@ -223,11 +224,53 @@ First we look at the date column in the `wide.chem.df` data frame.
 class(wide.chem.df$date)
 head(wide.chem.df$date)
 ```
+
+Right now the date column is a has the `"character"` class. We need to convert it to
+a date/time class. The simplest way to convert to a date in R is to use the
+`as.Date()` function. However, the `"Date"` class does not store time information.
+In this case, we will use the `as.POSIXct()` function to convert it to a class
+that will retain the time information. (See 
+<a href="https://www.stat.berkeley.edu/classes/s133/dates.html" target="_blank">this site</a>
+for a good overview of date and time classes in R.) 
+
+```{r}
+wide.chem.df$date <- as.POSIXct(wide.chem.df$date, 
+                                format = "%m/%d/%Y %H:%M",
+                                tz = "America/Chicago")
+class(wide.chem.df$date)
+head(wide.chem.df$date)
+```
+
+Now we need to make the date column in the `precip_hobart` data frame the same
+class. However, since the `POSIXct` class reqires a time, we'll need to add a time
+to each date in the `precip_hobart` data frame.
+
+```{r}
+precip_hobart$Date <- paste(precip_hobart$Date, "12:00")
+precip_hobart$Date <- as.POSIXct(precip_hobart$Date,
+                                 tz = "America/Chicago")
+class(precip_hobart$Date)
+head(precip_hobart$Date)
+```
+
+
+## Merging
+
+Now we're ready to merge the precipitation data with the sampling data. We'll 
+use the `merge()` function that was introduced in <a href="http://rpubs.com/NateByers/manipRidem"
+target="_blank">this tutorial</a>.
+
+```{r}
+colnames(precip_hobart) <- c("date", "precipitation")
+precip.wide.df <- merge(wide.chem.df, precip_hobart, all.x = T)
+```
+
+
 ...
 -------------------------------------------------------------------------------
 
-### R Markdown
 
+### R Markdown
 
 This tutorial was created using RStudio's <a href="http://rmarkdown.rstudio.com/"
 target="_blank">R Markdown</a>. The code can be found on <a href="https://github.com/NateByers/precipRidem"
