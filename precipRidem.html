@@ -77,7 +77,8 @@ install_github(&quot;InDEM/IDEMdata&quot;)</code></pre>
 <h1>Chemistry data</h1>
 <p>Let’s take a look at the <code>deep_river_chemistry</code> data frame.</p>
 <pre class="r"><code>data(deep_river_chemistry)
-chem.df &lt;- deep_river_chemistry
+chem.df &lt;- deep_river_chemistry # rename for convenience
+remove(deep_river_chemistry)    # a little clean-up
 View(chem.df)</code></pre>
 <div id="dealing-with-duplicates" class="section level2">
 <h2>Dealing with duplicates</h2>
@@ -128,7 +129,7 @@ chem.df[grepl(&quot;&lt;&quot;, chem.df$LAB_RESULT_TEXT, fixed = T), &quot;LAB_R
 <pre class="r"><code>library(reshape2)
 wide.chem.df &lt;- dcast(chem.df, STATION_NAME + ACTIVITY_NO + ACTIVITY_END_DATE 
                       + WATERBODY_NAME + UTM_EAST + UTM_NORTH + COUNTY_NAME 
-                      ~ SUBSTANCE_NAME, value.var = 'LAB_RESULT'))
+                      ~ SUBSTANCE_NAME, value.var = 'LAB_RESULT')
 View(wide.chem.df)</code></pre>
 <p>In order to make this data frame useful, we need to rename the columns. We can use the <code>colname()</code> function to rename some of the columns. Here we rename the first 7 columns, as well as one of the turbidity columns:</p>
 <pre class="r"><code>colnames(wide.chem.df)[c(1:7, 32)] &lt;- c(&quot;station&quot;, &quot;activity&quot;, &quot;date&quot;, &quot;waterbody&quot;,
@@ -196,7 +197,7 @@ class(precip_hobart$Date)</code></pre>
 <h2>Merging</h2>
 <p>Now we’re ready to merge the precipitation data with the sampling data. We’ll use the <code>merge()</code> function that was introduced in <a href="http://rpubs.com/NateByers/manipRidem" target="_blank">this tutorial</a>.</p>
 <pre class="r"><code>colnames(precip_hobart) &lt;- c(&quot;date&quot;, &quot;precipitation&quot;)
-wide.precip.df &lt;- merge(wide.chem.df, precip_hobart, all.x = T)</code></pre>
+wide.precip.df &lt;- merge(wide.chem.df, precip_hobart, all = T)</code></pre>
 </div>
 <div id="section" class="section level2">
 <h2>…</h2>

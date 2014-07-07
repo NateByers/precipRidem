@@ -62,7 +62,8 @@ remove(deep_river_chemistry)    # a little clean-up
 
 ```{r, eval = FALSE}
 data(deep_river_chemistry)
-chem.df <- deep_river_chemistry
+chem.df <- deep_river_chemistry # rename for convenience
+remove(deep_river_chemistry)    # a little clean-up
 View(chem.df)
 ```
 
@@ -164,7 +165,7 @@ wide.chem.df <- dcast(chem.df, STATION_NAME + ACTIVITY_NO + ACTIVITY_END_DATE
 library(reshape2)
 wide.chem.df <- dcast(chem.df, STATION_NAME + ACTIVITY_NO + ACTIVITY_END_DATE 
                       + WATERBODY_NAME + UTM_EAST + UTM_NORTH + COUNTY_NAME 
-                      ~ SUBSTANCE_NAME, value.var = 'LAB_RESULT'))
+                      ~ SUBSTANCE_NAME, value.var = 'LAB_RESULT')
 View(wide.chem.df)
 ```
 
@@ -262,7 +263,7 @@ target="_blank">this tutorial</a>.
 
 ```{r}
 colnames(precip_hobart) <- c("date", "precipitation")
-wide.precip.df <- merge(wide.chem.df, precip_hobart, all.x = T)
+wide.precip.df <- merge(wide.chem.df, precip_hobart, all = T)
 ```
 
 
