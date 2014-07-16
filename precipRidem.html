@@ -55,7 +55,7 @@ if (window.hljs && document.readyState && document.readyState === "complete") {
 <div id="header">
 <h1 class="title">R Tutorial: Precipitation Graphs, Pt 1</h1>
 <h4 class="author"><em>Nathan Byers</em></h4>
-<h4 class="date"><em>Tuesday, July 09, 2014</em></h4>
+<h4 class="date"><em>Wednesday, July 09, 2014</em></h4>
 </div>
 
 
@@ -172,32 +172,31 @@ head(precip_hobart)</code></pre>
 <pre class="r"><code>head(wide.chem.df$date)</code></pre>
 <pre><code>## [1] &quot;6/24/2013 11:55&quot; &quot;7/22/2013 11:35&quot; &quot;4/8/2013 13:00&quot;  &quot;5/6/2013 12:00&quot; 
 ## [5] &quot;6/10/2013 12:20&quot; &quot;9/9/2013 11:25&quot;</code></pre>
-<p>Right now the date column is a has the <code>&quot;character&quot;</code> class. We need to convert it to a date/time class. The simplest way to convert to a date in R is to use the <code>as.Date()</code> function. However, the <code>&quot;Date&quot;</code> class does not store time information. In this case, we will use the <code>as.POSIXct()</code> function to convert it to a class that will retain the time information. (See <a href="https://www.stat.berkeley.edu/classes/s133/dates.html" target="_blank">this site</a> for a good overview of date and time classes in R.)</p>
-<pre class="r"><code>wide.chem.df$date &lt;- as.POSIXct(wide.chem.df$date, 
+<p>Right now the date column is a has the <code>&quot;character&quot;</code> class. We need to convert it to a date/time class. The simplest way to convert to a date in R is to use the <code>as.Date()</code> function. (See <a href="https://www.stat.berkeley.edu/classes/s133/dates.html" target="_blank">this site</a> for a good overview of date and time classes in R.)</p>
+<pre class="r"><code>wide.chem.df$date &lt;- as.Date(wide.chem.df$date, 
                                 format = &quot;%m/%d/%Y %H:%M&quot;,
                                 tz = &quot;America/Chicago&quot;)
 class(wide.chem.df$date)</code></pre>
-<pre><code>## [1] &quot;POSIXct&quot; &quot;POSIXt&quot;</code></pre>
+<pre><code>## [1] &quot;Date&quot;</code></pre>
 <pre class="r"><code>head(wide.chem.df$date)</code></pre>
-<pre><code>## [1] &quot;2013-06-24 11:55:00 CDT&quot; &quot;2013-07-22 11:35:00 CDT&quot;
-## [3] &quot;2013-04-08 13:00:00 CDT&quot; &quot;2013-05-06 12:00:00 CDT&quot;
-## [5] &quot;2013-06-10 12:20:00 CDT&quot; &quot;2013-09-09 11:25:00 CDT&quot;</code></pre>
-<p>Now we need to make the date column in the <code>precip_hobart</code> data frame the same class. However, since the <code>POSIXct</code> class reqires a time, we’ll need to add a time to each date in the <code>precip_hobart</code> data frame.</p>
-<pre class="r"><code>precip_hobart$Date &lt;- paste(precip_hobart$Date, &quot;12:00&quot;)
-precip_hobart$Date &lt;- as.POSIXct(precip_hobart$Date,
+<pre><code>## [1] &quot;2013-06-24&quot; &quot;2013-07-22&quot; &quot;2013-04-08&quot; &quot;2013-05-06&quot; &quot;2013-06-10&quot;
+## [6] &quot;2013-09-09&quot;</code></pre>
+<p>Now we need to make the date column in the <code>precip_hobart</code> data frame the same class.</p>
+<pre class="r"><code>precip_hobart$Date &lt;- as.Date(precip_hobart$Date,
                                  tz = &quot;America/Chicago&quot;)
 class(precip_hobart$Date)</code></pre>
-<pre><code>## [1] &quot;POSIXct&quot; &quot;POSIXt&quot;</code></pre>
+<pre><code>## [1] &quot;Date&quot;</code></pre>
 <pre class="r"><code>head(precip_hobart$Date)</code></pre>
-<pre><code>## [1] &quot;2013-04-01 12:00:00 CDT&quot; &quot;2013-04-02 12:00:00 CDT&quot;
-## [3] &quot;2013-04-03 12:00:00 CDT&quot; &quot;2013-04-04 12:00:00 CDT&quot;
-## [5] &quot;2013-04-05 12:00:00 CDT&quot; &quot;2013-04-06 12:00:00 CDT&quot;</code></pre>
+<pre><code>## [1] &quot;2013-04-01&quot; &quot;2013-04-02&quot; &quot;2013-04-03&quot; &quot;2013-04-04&quot; &quot;2013-04-05&quot;
+## [6] &quot;2013-04-06&quot;</code></pre>
+<p>We will also need a Julian day column.</p>
+<pre class="r"><code>colnames(precip_hobart) &lt;- c(&quot;date&quot;, &quot;precipitation&quot;)
+precip_hobart &lt;- data.frame(jday = 1:dim(precip_hobart)[1], precip_hobart)</code></pre>
 </div>
 <div id="merging" class="section level2">
 <h2>Merging</h2>
 <p>Now we’re ready to merge the precipitation data with the sampling data. We’ll use the <code>merge()</code> function that was introduced in <a href="http://rpubs.com/NateByers/manipRidem" target="_blank">this tutorial</a>.</p>
-<pre class="r"><code>colnames(precip_hobart) &lt;- c(&quot;date&quot;, &quot;precipitation&quot;)
-wide.precip.df &lt;- merge(wide.chem.df, precip_hobart, all = T)</code></pre>
+<pre class="r"><code>wide.precip.df &lt;- merge(wide.chem.df, precip_hobart, all = T)</code></pre>
 </div>
 <div id="section" class="section level2">
 <h2>…</h2>
