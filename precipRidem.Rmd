@@ -18,7 +18,7 @@ creation of these graphs.
 To access the data, we need to download the package from a GitHub repository. The 
 repository address is <a href="https://github.com/InDEM/IDEMdata" target="_blank">https://github.com/InDEM/IDEMdata</a>. To install it from GitHub, we use the `devtools` package.
 
-```{r, message=FALSE}
+```{r, message=FALSE, warning=FALSE}
 library(devtools)
 install_github("InDEM/IDEMdata")
 ```
@@ -268,6 +268,9 @@ target="_blank">this tutorial</a>.
 wide.precip.df <- merge(wide.chem.df, precip_hobart, all = T)
 ```
 
+## Part 2
+In <a href="http://rpubs.com/NateByers/precip2Ridem" target="_blank">part 2</a> 
+of the tutorial we will use this data to create precipitation graphs.
 
 ...
 -------------------------------------------------------------------------------
